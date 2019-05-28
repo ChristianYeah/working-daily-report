@@ -60,11 +60,11 @@ if __name__ == "__main__":
     project_messages = {}
     for project_name, project_path in config.WORKING_DIRS.items():
         with cd(project_path):
-            out = run("git log --pretty=format:\"%ai{AKC}%ae{AKC}%s\"", hide='both')
+            out = run("git log --pretty=format:\"%ai{DELIMITER}%ae{DELIMITER}%s\"", hide='both')
             commits = str(out.stdout).split("\n")
             messages = previous = {}
             for commit in commits:
-                commit_time, commit_author, commit_message = commit.split("{AKC}")
+                commit_time, commit_author, commit_message = commit.split("{DELIMITER}")
                 if datetime.strptime(commit_time, "%Y-%m-%d %H:%M:%S %z").strftime(
                         "%Y-%m-%d") == datetime.now().strftime("%Y-%m-%d") and commit_author == config.AUTHOR_EMAIL:
                     messages[commit_message] = commit_message
