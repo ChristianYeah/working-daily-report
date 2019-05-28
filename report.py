@@ -41,6 +41,7 @@ class cd:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-t", type=str, help=u'明日工作计划, 半角逗号分隔')
+    parser.add_argument("-c", type=str, help=u'今日工作计划, 半角逗号分隔')
     parser.add_argument("-n", type=int, help=u'抽取之前工作提交的数量, 默认单个项目随机1-3', default="3")
     parser.add_argument("-f", help=u'强制单个项目随机n条', default="0")
     parser.add_argument("--previous", help=u'抽取之前的工作内容', action="store_true")
@@ -69,7 +70,7 @@ if __name__ == "__main__":
                     messages[commit_message] = commit_message
                 elif args.previous is True:
                     if len(previous) < random.randint(1, args.n) or \
-                            len(previous) < forces[list(config.WORKING_DIRS).index(project_name)]:
+                            (len(forces) > 0 and len(previous) < forces[list(config.WORKING_DIRS).index(project_name)]):
                         previous[commit_message] = commit_message
 
             project_messages[project_name] = [key for key in messages.keys()]
@@ -90,6 +91,12 @@ if __name__ == "__main__":
             EMAIL_MESSAGE += "{0}{1}.{1}、{2}<br />".format("&nbsp;" * 4, index, work_index + 1,
                                                            works[work_index])
         index += 1
+
+    if args.c is not None:
+        tasks = str(args.c).split(",")
+        for task in tasks:
+            EMAIL_MESSAGE += "{0}、{1}<br />".format(index, task)
+            index += 1
 
     EMAIL_MESSAGE += "<strong>明天:</strong><br />"
 
