@@ -20,7 +20,6 @@ db = client[config.MONGO_DB]
 # 日报
 EMAIL_MESSAGE = """
 Dear:<br />
-<strong>今天:</strong><br />
 """
 
 
@@ -40,11 +39,12 @@ class cd:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("-t", type=str, help=u'明日工作计划, 半角逗号分隔')
     parser.add_argument("-c", type=str, help=u'今日工作计划, 半角逗号分隔')
+    parser.add_argument("-t", type=str, help=u'明日工作计划, 半角逗号分隔')
     parser.add_argument("-n", type=int, help=u'抽取之前工作提交的数量, 默认单个项目随机1-3', default="3")
     parser.add_argument("-f", help=u'强制单个项目随机n条', default="0")
-    parser.add_argument("--previous", help=u'抽取之前的工作内容', action="store_false")
+    parser.add_argument("--previous", help=u'抽取之前的工作内容', action="store_true")
+    parser.add_argument("--weekly", help=u'周报', action="store_true")
     args = parser.parse_args()
     forces = []
     if args.f != "0":
@@ -57,21 +57,39 @@ if __name__ == "__main__":
             forces += forces[0] * (len(config.WORKING_DIRS) - len(forces))
         else:
             forces = forces[:len(config.WORKING_DIRS)]
+    report_type = "日报"
+    current_report_title = "今日"
+    next_report_title = "本周"
+    if args.weekly is True:
+        report_type = "周报"
+        current_report_title = "明日"
+        next_report_title = "下周"
     project_messages = {}
     for project_name, project_path in config.WORKING_DIRS.items():
         with cd(project_path):
-            out = run("git log --pretty=format:\"%ai{DELIMITER}%ae{DELIMITER}%s\"", hide='both')
+            out = run("git log --pretty=format:\"%ai{AKC}%ae{AKC}%s\"", hide='both')
             commits = str(out.stdout).split("\n")
             messages = previous = {}
             for commit in commits:
-                commit_time, commit_author, commit_message = commit.split("{DELIMITER}")
-                if datetime.strptime(commit_time, "%Y-%m-%d %H:%M:%S %z").strftime(
-                        "%Y-%m-%d") == datetime.now().strftime("%Y-%m-%d") and commit_author == config.AUTHOR_EMAIL:
-                    messages[commit_message] = commit_message
-                elif args.previous is True:
-                    if len(previous) < random.randint(1, args.n) or \
-                            (len(forces) > 0 and len(previous) < forces[list(config.WORKING_DIRS).index(project_name)]):
-                        previous[commit_message] = commit_message
+                commit_time, commit_author, commit_message = commit.split("{AKC}")
+                if commit_author != config.AUTHOR_EMAIL:
+                    continue
+                if args.weekly is False:
+                    if datetime.strptime(commit_time, "%Y-%m-%d %H:%M:%S %z").strftime(
+                            "%Y-%m-%d") == datetime.now().strftime("%Y-%m-%d"):
+                        messages[commit_message] = commit_message
+                    elif args.previous is True:
+                        if len(previous) < random.randint(1, args.n) or \
+                                (len(forces) > 0 and len(previous) < forces[list(config.WORKING_DIRS).index(project_name)]):
+                            previous[commit_message] = commit_message
+                else:
+                    if datetime.strptime(commit_time, "%Y-%m-%d %H:%M:%S %z").strftime(
+                            "%Y-%W") == datetime.now().strftime("%Y-%W"):
+                        messages[commit_message] = commit_message
+                    elif args.previous is True:
+                        if len(previous) < random.randint(1, args.n) or \
+                                (len(forces) > 0 and len(previous) < forces[list(config.WORKING_DIRS).index(project_name)]):
+                            previous[commit_message] = commit_message
 
             project_messages[project_name] = [key for key in messages.keys()]
             project_messages[project_name] += [key for key in previous.keys()]
@@ -79,11 +97,12 @@ if __name__ == "__main__":
     msg = MIMEMultipart()
     msg['From'] = config.MAIL_FROM
     msg['To'] = config.MAIL_TO
-    msg['Subject'] = "日报-{0}-{1}-{2}-{3}".format(config.DEPARTMENT, config.POSITION, config.NAME,
+    msg['Subject'] = "{0}-{1}-{2}-{3}-{4}".format(report_type, config.DEPARTMENT, config.POSITION, config.NAME,
                                                  datetime.now().strftime("%Y%m%d"))
 
     index = 1
     daily_works = {}
+    EMAIL_MESSAGE += "<strong>{0}总结:</strong><br />".format(current_report_title)
     for project_name, works in project_messages.items():
         daily_works[project_name] = project_name
         EMAIL_MESSAGE += "{0}、{1}<br />".format(index, config.WORKING_PLATFORMS_NAMES[project_name])
@@ -98,7 +117,7 @@ if __name__ == "__main__":
             EMAIL_MESSAGE += "{0}、{1}<br />".format(index, task)
             index += 1
 
-    EMAIL_MESSAGE += "<strong>明天:</strong><br />"
+    EMAIL_MESSAGE += "<strong>{0}规划:</strong><br />".format(next_report_title)
 
     index = 1
     for platform in daily_works.keys():
