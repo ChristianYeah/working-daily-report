@@ -44,7 +44,7 @@ if __name__ == "__main__":
     parser.add_argument("-c", type=str, help=u'今日工作计划, 半角逗号分隔')
     parser.add_argument("-n", type=int, help=u'抽取之前工作提交的数量, 默认单个项目随机1-3', default="3")
     parser.add_argument("-f", help=u'强制单个项目随机n条', default="0")
-    parser.add_argument("--previous", help=u'抽取之前的工作内容', action="store_true")
+    parser.add_argument("--previous", help=u'抽取之前的工作内容', action="store_false")
     args = parser.parse_args()
     forces = []
     if args.f != "0":
